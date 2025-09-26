@@ -49,18 +49,39 @@ conda config --set auto_activate_base false
 
 ---
 
-## 4. Create a Conda Environment
+## 4. Configure Private Environment Directory
 
-You can now create your own Conda environment, with name **myenv**:
+By default, new environments are created in the **shared folder**:
+`/network/rit/lab/basulab/Anaconda3/envs/`
+
+To avoid conflicts with other users, set your environments directory to your home folder.  
+Run this command **once**:
 
 ```bash
-conda create -n myenv python numpy matplotlib xarray zarr netcdf4 h5netcdf hdf5 jupyterlab ipykernel
+conda config --add envs_dirs ~/.conda/envs
+```
+
+From now on, all your new environments will be stored under: 
+`~/.conda/envs/`
+
+
+## 5. Create a Conda Environment
+
+Instead of manually listing packages, use the provided `environment.yml` file for reproducibility.
+
+```bash
+conda env create -f environment.yml
+```
+
+Check which environments exist using:
+```bash
+conda env list
 ```
 
 Activate it with:
 
 ```bash
-conda activate myenv
+conda activate conus404
 ```
 
 ---
@@ -70,7 +91,7 @@ conda activate myenv
 Once inside your environment, register its kernel so it is visible in **JupyterLab**:
 
 ```bash
-python -m ipykernel install --user --name=myenv --display-name "Python (myenv)"
+python -m ipykernel install --user --name=conus404 --display-name "Python (conus404)"
 ```
 
 ---
@@ -87,43 +108,7 @@ Once you have created and registered your Conda environment, you can run Jupyter
 
 ## 1. Prepare the SLURM Job Script
 
-Save the following script as `start_jupyter_notebook_hpc.slurm` in your working directory:
-
-```bash
-#!/bin/bash
-
-#SBATCH --job-name=jupyter
-#SBATCH --output=slurmout/jupyter-%j.out
-#SBATCH --error=slurmout/jupyter-%j.err
-#SBATCH --time=05-00:00:00
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
-
-# Ensure log directory exists
-mkdir -p slurmout
-
-# Load conda init script
-source /network/rit/lab/basulab/Anaconda3/etc/profile.d/conda.sh
-conda activate myenv
-
-# Random port
-port=$((RANDOM % 1000 + 8000))
-token="$(openssl rand -hex 16)"
-
-# Detect node hostname/IP
-node_host=$(hostname -f)
-
-# Print URL to .out
-echo "=========================================================="
-echo "Your Jupyter Lab session is available at:"
-echo "   http://${node_host}:${port}/lab?token=${token}"
-echo "=========================================================="
-
-# Start Jupyter Lab
-jupyter lab --no-browser --ip=0.0.0.0 --port=$port \
-  --NotebookApp.token="${token}"
-```
+Download the file `start_jupyter_notebook_hpc.slurm` into your working directory.
 
 ---
 
@@ -171,3 +156,56 @@ You now have access to JupyterLab running on the HPC with your Conda environment
 ---
 
 ✅ That’s it! You are now running JupyterLab interactively on the HPC.
+
+# Download CONUS404 Daily Data
+
+This workflow uses helper scripts to download and organize **CONUS404 daily data** into yearly folders.
+
+---
+
+## 1. Required Files
+
+Make sure the following files are present in your working directory:
+
+- `conus404_daily_downloader.py`  
+- `jobsub_conus_download.slurm`  
+- `run_all_download.sh`  
+- `run_all_redownload.sh`  
+
+---
+
+## 2. Customize Variables (if needed)
+
+Inside **`conus404_daily_downloader.py`**, the default variables to download are:
+
+```python
+ds_sub = ds_all[["U10", "V10", "USHR6", "VSHR6", "SBCAPE", "MLCAPE", "MUCAPE"]].isel(**ny_indices)
+```
+
+- For reference, see CONUS404_variable_descriptions.txt for a complete list of available variables.
+
+- Modify the variable list in conus404_daily_downloader.py as needed for your analysis.
+
+## 3. Run the Main Download Script
+
+Run the batch script to download all years (default: 1979–2022):
+
+```bash
+bash run_all_download.sh
+```
+
+- This will submit jobs for each year.
+
+- Data will be downloaded into the folder: `/data/CONUS404/<year>/`
+
+## 4. Re-run for Missing Files
+
+If some files fail or are incomplete:
+
+```bash
+bash run_all_redownload.sh
+```
+
+This script checks for missing data and resubmits the jobs.
+
+✅ At the end of this process, you will have a full set of daily CONUS404 data stored under /data/CONUS404/, organized by year.

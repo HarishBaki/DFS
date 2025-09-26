@@ -1,0 +1,22 @@
+name: conus404
+channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - xarray
+  - zarr
+  - pandas
+  - fsspec
+  - cfgrib
+  - eccodes
+  - dask
+  - netcdf4
+  - h5py
+  - scipy
+  - matplotlib
+  - metpy
+  - pip
+  - pip:
+      - pystac-client
+      - planetary-computer
+      - adlfs
